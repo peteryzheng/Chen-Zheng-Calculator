@@ -1,0 +1,649 @@
+library(shiny)
+library(ggplot2)
+library(shinyjs)
+
+shinyServer(
+  function(input,output){
+    #################### INPUT FOR PROBABILITY OF TOXICITY #################### 
+    doseNumber <- reactive({
+      return(as.numeric(input$doseNumber))
+    })
+    observe({
+      toggle(condition = input$Done1, selector = "#mynavlist li a[data-value=Probabilities]")
+    })
+    observe({
+      toggle(condition = input$Done2, selector = "#mynavlist li a[data-value=Parameters]")
+    })
+    dataProbabilities <- reactive({
+      fileProbabilities <- input$probabilities
+      if(is.null(fileProbabilities)){return()}
+      temptable <- read.table(file = fileProbabilities$datapath,sep = input$sep1)
+      temptable <- temptable[,-1]
+      tempColumnnames <- c(1:length(temptable[1,]))
+      colnames(temptable) <- tempColumnnames
+      return(temptable)
+    }) #reactive function for reading table
+    output$fileProbabilities <- renderTable({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(dataProbabilities())){return()}
+          else 
+            input$probabilities
+        )
+    },
+    rownames = TRUE
+    ) #isolated processing of file path information
+    output$dataProbabilities <- renderTable({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(dataProbabilities())){return()}
+          else
+            dataProbabilities()
+        )
+    },
+    rownames = TRUE
+    ) #isolated processing of file data
+
+    withConv <- reactive({
+      if (as.numeric(input$`de-escalation`) == 1)
+        return('With')
+      else
+        return('Without')
+    })
+
+    #################### DATA OUTPUT #################### 
+    deescalation <- reactive({
+      parameters <- c(as.numeric(input$a),as.numeric(input$b),as.numeric(input$c),as.numeric(input$d),as.numeric(input$e))
+      fileProbabilities <- input$probabilities
+      probabilities <- read.table(file = fileProbabilities$datapath,sep = input$sep1)
+      doseConc <- as.numeric(data.frame(probabilities[2,2:length(probabilities)]))
+      probabilities <- as.numeric(data.frame(probabilities[3,2:length(probabilities)]))
+      result <- calculateMTDandPtNum(probability = probabilities,parameter = parameters,dosedeesc = as.numeric(input$`de-escalation`))
+      MTD <- result[1,]
+      ptNumber <- result[2,]
+      toxicity <- calculateIndividualToxicity(ptNum = ptNumber, probabilities = probabilities) #Run method for calculating Individual toxicity
+      output <- rbind(probabilities,doseConc,MTD,ptNumber,toxicity)
+      output <- round(output,digits = 3)
+      doseLevel <- as.numeric(1:length(probabilities))
+      colnames(output) <- doseLevel
+      row.names(output)<- c("Probability of toxicity","Dose concentration","Probabilities that the dose is declared as MTD","Expected number of patients","Expected number of toxicity incidences") #Give row names for excel spreadsheet output
+      return(output)
+    })    
+    output$deescalation <- renderTable({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(deescalation())){return()}
+          else{
+            temp <- deescalation()
+            temp <- data.frame(cbind(rownames(temp), temp))
+            tempColNames <- c(1:(length(temp[1,])-1))
+            ColNames <- c("Dose Level",tempColNames)
+            colnames(temp) <- ColNames
+            rownames(temp) <- NULL
+            return(temp)
+          }
+        )
+    },
+    rownames = FALSE
+    )
+    otherstats <- reactive({
+      parameters <- c(as.numeric(input$a),as.numeric(input$b),as.numeric(input$c),as.numeric(input$d),as.numeric(input$e))
+      fileProbabilities <- input$probabilities
+      probabilities <- read.table(file = fileProbabilities$datapath,sep = input$sep1)
+      doseConc <- as.numeric(data.frame(probabilities[2,2:length(probabilities)]))
+      probabilities <- as.numeric(data.frame(probabilities[3,2:length(probabilities)]))
+      result <- calculateMTDandPtNum(probability = probabilities,parameter = parameters,dosedeesc = as.numeric(input$`de-escalation`))
+      MTD <- result[1,]
+      ptNumber <- result[2,]
+      TTL <- calculateTTL(probMTD = MTD,probabilities = probabilities) #Run method for calculating targeted toxicity level
+      toxicity <- calculateIndividualToxicity(ptNum = ptNumber, probabilities = probabilities) #Run method for calculating Individual toxicity
+      overallToxicity <- calculateOverallToxicity(ptNum = ptNumber, probabilities = probabilities) #Run method for calculating overall toxicity
+      TTLtemp <- data.frame(c(1:(length(probabilities)-1)))
+      TTLtemp[1,] <- TTL #Side column 1st item TTL 
+      TTLtemp[3,] <- calculateDose0(probability = probabilities,parameter = parameters,dosedeesc = as.numeric(input$`de-escalation`)) # Side column 3rd item dose 0 MTD
+      TTLtemp[4,] <- sum(ptNumber) #Side column 4th item total patient number
+      TTLtemp[5,] <- overallToxicity #Side column 5th item overall toxicity incidence
+      TTLtemp[2,] <- TTLtemp[5,]/TTLtemp[4,] #Side column 2nd item overall toxicity rateTTLtemp[(count - 1)*3+1,1] <- TTL #Side column 1st item TTL
+      colnames(TTLtemp) <- "other characteristics"#Get rid of ugly column names that don't make sense
+      row.names(TTLtemp) <- c("TTL","Overall Toxicity Rate","Probability of Dose 0 Recommende as MTD","Total Patient Number","Overall Toxicity Incidence")
+      TTLtemp <- round(TTLtemp,digits = 3)
+      return(TTLtemp)
+    })
+    output$otherstats <- renderTable({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(otherstats())){return()}
+          else
+            otherstats()
+        )
+    },
+    rownames = TRUE
+    )
+    
+    #################### GRAPHIC OUTPUT #################### 
+    MTDbarplot <- reactive({
+      tempoutput <- deescalation()
+      TTLtemp <- otherstats()
+      appendedtempoutput <- data.frame(TTLtemp[2,],tempoutput[3,])
+      samplebarindex <- data.frame(t(c(0:(length(appendedtempoutput)-1))))
+      colnames(samplebarindex) <- colnames(appendedtempoutput)
+      tempDataFrame <- data.frame(t(rbind(samplebarindex,appendedtempoutput)))
+      colnames(tempDataFrame) <- c("Dose_level", "Probabilities_that_the_dose_is_declared_as_MTD")
+      return(ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_declared_as_MTD)) + labs(title = "Probabilities That the Dose is Declared as MTD") + geom_bar(stat = "identity")+ scale_x_continuous(breaks = c(0:(length(tempoutput)))))
+      #png(sprintf( paste(outputdirectory,"barplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
+      #p <- ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_declared_as_MTD)) + geom_bar(stat = "identity") + scale_x_continuous(breaks = c(0:(length(probabilities)-1)))
+      #print(p)
+      #dev.off()
+    })
+    output$MTDbarplot <- renderPlot({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(MTDbarplot())){return()}
+          else
+            MTDbarplot()
+        )
+    })
+    
+    MTDscatterplot <- reactive({
+      tempoutput <- deescalation()
+      TTLtemp <- otherstats()
+      tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[3,])))
+      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Probabilities_that_the_dose_is_declared_as_MTD")
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + labs(title = "Probabilities That the Dose is Declared as MTD") + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1)))
+      #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #print(p)
+      #dev.off()
+    })
+    output$MTDscatterplot <- renderPlot({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(MTDscatterplot())){return()}
+          else
+            MTDscatterplot()
+        )
+    })
+    
+    ptNumbarplot <- reactive({
+      tempoutput <- deescalation()
+      TTLtemp <- otherstats()
+      samplebarindex <- data.frame(t(c(1:length(tempoutput))))
+      colnames(samplebarindex) <- colnames(tempoutput)
+      tempDataFrame <- data.frame(t(rbind(samplebarindex,tempoutput[4,])))
+      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_patients")
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + geom_bar(stat = "identity") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
+      #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #print(p)
+      #dev.off()
+    })
+    output$ptNumbarplot <- renderPlot({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(ptNumbarplot())){return()}
+          else
+            ptNumbarplot()
+        )
+    })
+    
+    ptNumscatterplot <- reactive({
+      tempoutput <- deescalation()
+      TTLtemp <- otherstats()
+      tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[4,])))
+      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_patients")
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1)))
+      #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #print(p)
+      #dev.off()
+    })
+    output$ptNumscatterplot <- renderPlot({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(ptNumscatterplot())){return()}
+          else
+            ptNumscatterplot()
+        )
+    })
+    
+    toxincbarplot <- reactive({
+      tempoutput <- deescalation()
+      TTLtemp <- otherstats()
+      samplebarindex <- data.frame(t(c(1:length(tempoutput))))
+      colnames(samplebarindex) <- colnames(tempoutput)
+      tempDataFrame <- data.frame(t(rbind(samplebarindex,tempoutput[5,])))
+      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_toxicity_incidences")
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + geom_bar(stat = "identity") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
+      #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #print(p)
+      #dev.off()
+    })
+    output$toxincbarplot <- renderPlot({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(toxincbarplot())){return()}
+          else
+            toxincbarplot()
+        )
+    })
+    
+    toxinccatterplot <- reactive({
+      tempoutput <- deescalation()
+      TTLtemp <- otherstats()
+      tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[5,])))
+      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_toxicity_incidences")
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1)))
+      #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #print(p)
+      #dev.off()
+    })
+    output$toxinccatterplot <- renderPlot({
+      input$calculate
+      if(input$calculate == 0)
+        return()
+      else
+        isolate(
+          if(is.null(toxinccatterplot())){return()}
+          else
+            toxinccatterplot()
+        )
+    })
+    
+    output$down <- downloadHandler(
+      filename = function(){
+        paste("output","pdf",sep = ".")
+      },
+      content = function(file){
+        pdf(file)
+        print(MTDbarplot())
+        print(MTDscatterplot())
+        print(ptNumbarplot())
+        print(ptNumscatterplot())
+        print(toxincbarplot())
+        print(toxinccatterplot())
+        dev.off()
+      }
+    )
+    
+    output$downFile <- downloadHandler(
+      filename = function(){
+        paste("output","csv",sep = ".")
+      },
+      content = function(file){
+        temp <- deescalation()
+        temp <- data.frame(cbind(rownames(temp), temp))
+        tempColNames <- c(1:(length(temp[1,])-1))
+        ColNames <- c("Dose Level",tempColNames)
+        colnames(temp) <- ColNames
+        rownames(temp) <- NULL
+        write.csv(temp,file,row.names = FALSE)
+        write.table(otherstats(), file, append = TRUE,sep = ',')
+      }
+    )
+  }
+)
+
+##### MTD and ptNum calculation #####
+calculateMTDandPtNum = function(probability, parameter, dosedeesc){
+  lengthOfArrays <- length(probability)
+  a <- parameter[1]
+  b <- parameter[2]
+  c <- parameter[3]
+  d <- parameter[4]
+  e <- parameter[5]
+  ##### Calculate parameters #####
+  probMTD <- 1:(lengthOfArrays+1)
+  probp0j <- 1:lengthOfArrays
+  probp1j <- 1:lengthOfArrays
+  probq0j <- 1:lengthOfArrays
+  probq1j <- 1:lengthOfArrays
+  probq2j <- 1:lengthOfArrays
+  for (x in 1:lengthOfArrays){
+    ##### calculating p0j #####
+    tempcounter = 0
+    for (countp0j in 0 : (c-1)){
+      tempcounter = tempcounter+((probability[x])^countp0j)*((1-probability[x])^(a-countp0j))*factorial(a)/((factorial(countp0j)*factorial(a-countp0j)))
+    }
+    probp0j[x] <- tempcounter
+    ##### calculating q0j #####
+    tempcounter = 0
+    firstpart = 0
+    secondpart = 0
+    for (countq0j in c:d){
+      for (innercount in 0:(e-countq0j)){
+        firstpart = (probability[x])^countq0j*((1-probability[x])^(a-countq0j))*factorial(a)/(factorial(countq0j)*factorial(a-countq0j))
+        secondpart = (probability[x])^innercount*(1-probability[x])^(b-innercount)*factorial(b)/(factorial(innercount)*factorial(b-innercount))
+        tempcounter = tempcounter + firstpart * secondpart
+      }
+    }
+    probq0j[x] <- tempcounter
+    ##### calculating p1j #####
+    tempcounter = 0
+    for (countp1j in c:d){
+      tempcounter = tempcounter + (probability[x])^countp1j*(1-probability[x])^(a-countp1j)*factorial(a)/(factorial(countp1j)*factorial(a-countp1j))
+    }
+    probp1j[x] <- tempcounter
+    ##### Calculate q1j #####
+    tempcounter <- 0
+    innercount <- 0
+    for (countq1j in 0:(c-1)){
+      for (innercount in 0:(e-countq1j)){
+        firstpart = (probability[x])^countq1j*(1-probability[x])^(a-countq1j)*factorial(a)/(factorial(countq1j)*factorial(a-countq1j))
+        secondpart = (probability[x])^innercount*(1-probability[x])^(b-innercount)*factorial(b)/(factorial(innercount)*factorial(b-innercount))
+        tempcounter = tempcounter + firstpart * secondpart
+      }
+    }
+    probq1j[x] <- tempcounter
+    ##### Calculate q2j #####
+    tempcounter <- 0
+    innercount <- 0
+    for (countq2j in 0:(c-1)){
+      for (innercount in (e+1-countq2j):b){
+        firstpart = (probability[x])^countq2j*(1-probability[x])^(a-countq2j)*factorial(a)/(factorial(countq2j)*factorial(a-countq2j))
+        secondpart = (probability[x])^innercount*(1-probability[x])^(b-innercount)*factorial(b)/(factorial(innercount)*factorial(b-innercount))
+        tempcounter = tempcounter + firstpart * secondpart
+      }
+    }
+    probq2j[x] <- tempcounter
+  }
+  if(dosedeesc == 1){
+    ##### Calculate MTDs #####
+    
+    for (i in 1:(lengthOfArrays-1)){
+      tempprob <- 0
+      firstMultiple <- 1
+      secondMultiple <- 1
+      for (k in (i+1):lengthOfArrays){
+        if (i == 1){
+          #firstMultiple <- probp0j[1]+probq0j[1]
+          firstMultiple <- 1
+        }
+        else{
+          for (j in 1:(i-1)){
+            firstMultiple <- firstMultiple * (probp0j[j]+probq0j[j])
+          }
+        }
+        if((k-1) >= (i+1)){
+          for (j in (i+1):(k-1)){
+            secondMultiple <- secondMultiple * probq2j[j]
+          }
+        }
+        tempprob <- tempprob + (firstMultiple * (probq0j[i] + probq1j[i]) * secondMultiple * (1 - probp0j[k] - probq0j[k]))
+      }
+      probMTD[i+1] <- tempprob
+    }
+    ##### dose 1 MTD #####
+    dose0counter <- 0
+    for (k in 1:lengthOfArrays){
+      tempcounter <- 1
+      if ((k-1) >= 1){
+        for (j in 1 : (k-1)){
+          tempcounter <- tempcounter * probq2j[j]
+        }
+      }
+      dose0counter <- dose0counter + tempcounter*(1 - probp0j[k] - probq0j[k])
+    }
+    probMTD[1] <- dose0counter
+    assign("dose0", probMTD[1], envir = .GlobalEnv) #Assign dose 0 value globally
+    ##### dose n MTD #####
+    tempprob <- 1
+    temp <- 1
+    for (temp in 1:lengthOfArrays){
+      tempprob <- tempprob * (probp0j[temp]+probq0j[temp])
+    }
+    probMTD[lengthOfArrays+1] <- tempprob
+    ##### OFFSET OF REGULAR DOSE BECAUSE DOSE 0 #####
+    
+    ##### Caculate pt num #####
+    ptNum <- 1:lengthOfArrays
+    for (j in 1:lengthOfArrays){
+      tempNum <- 0
+      for (i in 0:(lengthOfArrays-1)){
+        for (k in (i+1):lengthOfArrays){
+          tempNumDose <- 0
+          if (j < i){
+            tempNumDose <- (a*probp0j[j]+(a+b)*probq0j[j])/(probp0j[j]+probq0j[j])
+          }
+          else if ((j >= i) && (j < k)){
+            tempNumDose <- a+b
+          }
+          else if (j == k){
+            tempNumDose <- (a*(1-probp0j[j]-probp1j[j])+(a+b)*(probp1j[j]-probq0j[j]))/(1-probp0j[j]-probq0j[j])
+          }
+          else{
+            tempNumDose <- 0
+          }
+          tempprob <- 0
+          firstMultiple <- 1
+          secondMultiple <- 1
+          if ((i == 1) || (i == 0)){
+            firstMultiple <- 1
+          }
+          else{
+            for (firstCount in 1:(i-1)){
+              firstMultiple <- firstMultiple * (probp0j[firstCount]+probq0j[firstCount])
+            }
+          }
+          if((k-1) >= (i+1)){
+            for (secondCount in (i+1):(k-1)){
+              secondMultiple <- secondMultiple * probq2j[secondCount]
+            }
+          }
+          if (i == 0){
+            tempprob <- secondMultiple * (1 - probp0j[k] - probq0j[k])
+            
+          }
+          else{
+            tempprob <- firstMultiple * (probq0j[i] + probq1j[i]) * secondMultiple * (1 - probp0j[k] - probq0j[k])
+          }
+          tempNum <- tempNum + tempNumDose * tempprob
+        }
+      }
+      tempNum <- tempNum + ((a*probp0j[j]+(a+b)*probq0j[j])/(probp0j[j]+probq0j[j])) * probMTD[lengthOfArrays+1]
+      ptNum[j] <- tempNum
+    }
+  }
+  else{
+    ##### Calculate MTDs #####
+    
+    for (i in 1:(lengthOfArrays-1)){
+      tempprob <- 1-probp0j[i+1]-probq0j[i+1]
+      temp <- 1
+      for (temp in 1:i){
+        tempprob <- tempprob * (probp0j[temp] + probq0j[temp])
+      }
+      probMTD[i+1] <- tempprob
+    }
+    ##### dose 1 MTD #####
+    probMTD[1] <- 1 - probp0j[1] - probq0j[1]
+    assign("dose0", probMTD[1], envir = .GlobalEnv) #Assign dose 0 value globally
+    ##### dose n MTD #####
+    tempprob <- 1
+    temp <- 1
+    for (temp in 1:lengthOfArrays){
+      tempprob <- tempprob * (probp0j[temp]+probq0j[temp])
+    }
+    probMTD[lengthOfArrays+1] <- tempprob
+    ##### OFFSET OF REGULAR DOSE BECAUSE DOSE 0 #####
+    
+    
+    ##### Caculate pt num #####
+    ptNum <- 1:lengthOfArrays
+    for (j in 1:lengthOfArrays){
+      tempNum <- 0
+      for (i in 0:lengthOfArrays){
+        tempNumDose <- 0
+        if (j <= i){
+          tempNumDose <- (a*probp0j[[j]]+(a+b)*probq0j[j])/(probp0j[j]+probq0j[j])
+        }
+        else if (j == i+1){
+          tempNumDose <- (a*(1-probp0j[j]-probp1j[[j]])+(a+b)*(probp1j[[j]]-probq0j[j]))/(1-probp0j[j]-probq0j[j])
+        }
+        else{
+          tempNumDose <- 0
+        }
+        tempNum <- tempNum + tempNumDose * probMTD[i+1]
+      }
+      ptNum[j] <- tempNum
+    }
+  }
+  ##### Return value #####
+  output = data.frame(matrix(nrow = 2,ncol = lengthOfArrays))
+  output[1,] <- probMTD[2:(lengthOfArrays+1)]
+  output[2,] <- ptNum[1:lengthOfArrays]
+  return(output) #  OUTPUT DATA FRAME OF TWO ROWS: FIRST ROW MTD; SECOND ROW PTNUM
+  
+}
+
+##### Calculate TTL #####
+calculateTTL = function (probMTD,probabilities){
+  lengthOfArray <- length(probMTD)
+  temp1 <- 0 #toxicity of dose i when dose i is MTD
+  temp2 <- 0 #when dose i is MTD
+  for (i in 1:(lengthOfArray-1)){
+    temp1 <- temp1 + probabilities[i]*probMTD[1,i]
+    temp2 <- temp2 + probMTD[1,i]
+  }
+  TTL <- temp1/temp2
+  return(TTL)
+}
+
+##### Calculate expected individual level toxicity #####
+calculateIndividualToxicity = function (probabilities, ptNum){
+  lengthOfArray <- length(probabilities)
+  toxicity <- 1:lengthOfArray
+  for (i in 1:lengthOfArray){
+    toxicity[i] <- probabilities[i]*ptNum[i]
+  }
+  return(toxicity)
+}
+
+##### Calculate expected overall toxicity #####
+calculateOverallToxicity = function (probabilities, ptNum){
+  overallNum <- 0
+  lengthOfArray <- length(probabilities)
+  for (i in 1:lengthOfArray){
+    overallNum <- overallNum + probabilities[i]*ptNum[i]
+  }
+  return(overallNum)
+}
+
+##### Calculate Dose 0 #####
+calculateDose0 = function(probability, parameter, dosedeesc){
+  lengthOfArrays <- length(probability)
+  a <- parameter[1]
+  b <- parameter[2]
+  c <- parameter[3]
+  d <- parameter[4]
+  e <- parameter[5]
+  ##### Calculate parameters #####
+  probMTD <- 1:(lengthOfArrays+1)
+  probp0j <- 1:lengthOfArrays
+  probp1j <- 1:lengthOfArrays
+  probq0j <- 1:lengthOfArrays
+  probq1j <- 1:lengthOfArrays
+  probq2j <- 1:lengthOfArrays
+  for (x in 1:lengthOfArrays){
+    ##### calculating p0j #####
+    tempcounter = 0
+    for (countp0j in 0 : (c-1)){
+      tempcounter = tempcounter+((probability[x])^countp0j)*((1-probability[x])^(a-countp0j))*factorial(a)/((factorial(countp0j)*factorial(a-countp0j)))
+    }
+    probp0j[x] <- tempcounter
+    ##### calculating q0j #####
+    tempcounter = 0
+    firstpart = 0
+    secondpart = 0
+    for (countq0j in c:d){
+      for (innercount in 0:(e-countq0j)){
+        firstpart = (probability[x])^countq0j*((1-probability[x])^(a-countq0j))*factorial(a)/(factorial(countq0j)*factorial(a-countq0j))
+        secondpart = (probability[x])^innercount*(1-probability[x])^(b-innercount)*factorial(b)/(factorial(innercount)*factorial(b-innercount))
+        tempcounter = tempcounter + firstpart * secondpart
+      }
+    }
+    probq0j[x] <- tempcounter
+    ##### calculating p1j #####
+    tempcounter = 0
+    for (countp1j in c:d){
+      tempcounter = tempcounter + (probability[x])^countp1j*(1-probability[x])^(a-countp1j)*factorial(a)/(factorial(countp1j)*factorial(a-countp1j))
+    }
+    probp1j[x] <- tempcounter
+    ##### Calculate q1j #####
+    tempcounter <- 0
+    innercount <- 0
+    for (countq1j in 0:(c-1)){
+      for (innercount in 0:(e-countq1j)){
+        firstpart = (probability[x])^countq1j*(1-probability[x])^(a-countq1j)*factorial(a)/(factorial(countq1j)*factorial(a-countq1j))
+        secondpart = (probability[x])^innercount*(1-probability[x])^(b-innercount)*factorial(b)/(factorial(innercount)*factorial(b-innercount))
+        tempcounter = tempcounter + firstpart * secondpart
+      }
+    }
+    probq1j[x] <- tempcounter
+    ##### Calculate q2j #####
+    tempcounter <- 0
+    innercount <- 0
+    for (countq2j in 0:(c-1)){
+      for (innercount in (e+1-countq2j):b){
+        firstpart = (probability[x])^countq2j*(1-probability[x])^(a-countq2j)*factorial(a)/(factorial(countq2j)*factorial(a-countq2j))
+        secondpart = (probability[x])^innercount*(1-probability[x])^(b-innercount)*factorial(b)/(factorial(innercount)*factorial(b-innercount))
+        tempcounter = tempcounter + firstpart * secondpart
+      }
+    }
+    probq2j[x] <- tempcounter
+  }
+  if (dosedeesc == 1){
+    dose0counter <- 0
+    for (k in 1:lengthOfArrays){
+      tempcounter <- 1
+      if ((k-1) >= 1){
+        for (j in 1 : (k-1)){
+          tempcounter <- tempcounter * probq2j[j]
+        }
+      }
+      dose0counter <- dose0counter + tempcounter*(1 - probp0j[k] - probq0j[k])
+    }
+    return(dose0counter)
+  }
+  else{
+    dose0counter <- 1 - probp0j[1] - probq0j[1]
+    return(dose0counter)
+  }
+}
+
+
+
+
+
+
+
+
+
