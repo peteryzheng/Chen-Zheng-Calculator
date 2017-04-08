@@ -59,15 +59,10 @@ shinyServer(
       )
     }))
     output$dynamicInputs <- renderUI({
-      temp <- doseNumber()
-      tempNames <- c(1:temp)
-      for (counter in 1:temp) {
-        tempNames[counter] <- paste("Dose",counter,sep = " ")
-      }
-  
+      temp <- as.numeric(doseNumber())
       lapply(1:temp, function(i) {
           fluidRow(
-            column(12,textInput(tempNames[i],paste("Enter",tempNames[i],":", sep = " "),placeholder = "Enter data: "))
+            column(12,textInput(paste0("Dose",i),paste("Enter",paste0("Dose",i),":", sep = " "),placeholder = "Enter data: "))
           ) 
       })
       
@@ -81,33 +76,12 @@ shinyServer(
 
     
     dataProbabilities <- reactive({
-      fileProbabilities <- input$probabilities
-      if(is.null(fileProbabilities)){return()}
-      temptable <- read.table(file = fileProbabilities$datapath,sep = input$sep1)
-      temptable <- temptable[,-1]
-      tempColumnnames <- c(1:length(temptable[1,]))
-      colnames(temptable) <- tempColumnnames
-      return(temptable)
+      temp <- as.numeric(doseNumber())
+      data.frame(lapply(1:temp, function(i) {
+        as.numeric(input[[paste0("Dose",i)]])
+      }))
     }) #reactive function for reading table
-    output$fileProbabilities <- renderTable({
-      if (is.null(input$calculate)) {
-        return()
-      }
-      else{
-        input$calculate
-        if(input$calculate == 0)
-          return()
-        else
-          isolate(
-            if(is.null(dataProbabilities())){return()}
-            else 
-              input$probabilities
-          )
-      }
-      
-    },
-    rownames = TRUE
-    ) #isolated processing of file path information
+    
     output$dataProbabilities <- renderTable({
       if (is.null(input$calculate) ){
         return()
@@ -119,35 +93,63 @@ shinyServer(
         else
           isolate(
             if(is.null(dataProbabilities())){return()}
-            else
-              dataProbabilities()
+            else{
+              tempTable <- data.frame(t(dataProbabilities()))
+              tempRowNames <- c(1:length(tempTable))
+              for (i in 1:length(tempTable[,1])){
+                tempRowNames[i] <- paste0("Dose",i)
+              }
+              rownames(tempTable) <- tempRowNames
+              colnames(tempTable) <- "Probabilities of Toxicity"
+              return(tempTable)
+            }
+              
+              
           )
       }
     },
     rownames = TRUE
     ) #isolated processing of file data
-
-    withConv <- reactive({
-      if (as.numeric(input$`de-escalation`) == 1)
-        return('With')
-      else
-        return('Without')
-    })
+    
+    output$infoProbabilities <- renderText({
+      if (is.null(input$calculate) ){
+        return()
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(dataProbabilities())){return()}
+            else
+              length(dataProbabilities()[1,])
+          )
+      }
+    }
+    ) 
 
     #################### DATA OUTPUT #################### 
     deescalation <- reactive({
       parameters <- c(as.numeric(input$a),as.numeric(input$b),as.numeric(input$c),as.numeric(input$d),as.numeric(input$e))
-      fileProbabilities <- input$probabilities
-      probabilities <- read.table(file = fileProbabilities$datapath,sep = input$sep1)
-      doseConc <- as.numeric(data.frame(probabilities[2,2:length(probabilities)]))
-      probabilities <- as.numeric(data.frame(probabilities[3,2:length(probabilities)]))
+      probabilities <- data.frame(dataProbabilities())
+      doseConc <- data.frame(t(1:length(probabilities[1,])))
       result <- calculateMTDandPtNum(probability = probabilities,parameter = parameters,dosedeesc = as.numeric(input$`de-escalation`))
       MTD <- result[1,]
       ptNumber <- result[2,]
       toxicity <- calculateIndividualToxicity(ptNum = ptNumber, probabilities = probabilities) #Run method for calculating Individual toxicity
+      probabilities <- data.frame(probabilities)
+      doseConc <- data.frame(doseConc)
+      MTD <- data.frame(MTD)
+      ptNumber <- data.frame(ptNumber)
+      toxicity <- data.frame(toxicity)
+      names(doseConc) <- names(probabilities)
+      names(MTD) <- names(probabilities)
+      names(ptNumber)<- names(probabilities)
+      names(toxicity)<- names(probabilities)
       output <- rbind(probabilities,doseConc,MTD,ptNumber,toxicity)
-      output <- round(output,digits = 3)
-      doseLevel <- as.numeric(1:length(probabilities))
+      output <- data.frame(round(output,digits = 3))
+      doseLevel <- as.numeric(1:length(probabilities[1,]))
       colnames(output) <- doseLevel
       row.names(output)<- c("Probability of toxicity","Dose concentration","Probabilities that the dose is declared as MTD","Expected number of patients","Expected number of toxicity incidences") #Give row names for excel spreadsheet output
       return(output)
@@ -165,11 +167,11 @@ shinyServer(
             if(is.null(deescalation())){return()}
             else{
               temp <- deescalation()
-              temp <- data.frame(cbind(rownames(temp), temp))
-              tempColNames <- c(1:(length(temp[1,])-1))
-              ColNames <- c("Dose Level",tempColNames)
-              colnames(temp) <- ColNames
-              rownames(temp) <- NULL
+              #temp <- data.frame(cbind(rownames(temp), temp))
+              #tempColNames <- c(1:(length(temp[1,])-1))
+              #ColNames <- c("Dose Level",tempColNames)
+              #colnames(temp) <- ColNames
+              #rownames(temp) <- NULL
               return(temp)
             }
           )
@@ -179,10 +181,8 @@ shinyServer(
     )
     otherstats <- reactive({
       parameters <- c(as.numeric(input$a),as.numeric(input$b),as.numeric(input$c),as.numeric(input$d),as.numeric(input$e))
-      fileProbabilities <- input$probabilities
-      probabilities <- read.table(file = fileProbabilities$datapath,sep = input$sep1)
-      doseConc <- as.numeric(data.frame(probabilities[2,2:length(probabilities)]))
-      probabilities <- as.numeric(data.frame(probabilities[3,2:length(probabilities)]))
+      probabilities <- data.frame(dataProbabilities())
+      doseConc <- data.frame(1:length(probabilities))
       result <- calculateMTDandPtNum(probability = probabilities,parameter = parameters,dosedeesc = as.numeric(input$`de-escalation`))
       MTD <- result[1,]
       ptNumber <- result[2,]
