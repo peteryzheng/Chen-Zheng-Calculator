@@ -4,16 +4,82 @@ library(shinyjs)
 
 shinyServer(
   function(input,output){
-    #################### INPUT FOR PROBABILITY OF TOXICITY #################### 
     doseNumber <- reactive({
       return(as.numeric(input$doseNumber))
     })
+    #################### Dynamic Input pages #################### 
+    useShinyjs()
+    rv <- reactiveValues(page = 1)
     observe({
-      toggle(condition = input$Done1, selector = "#mynavlist li a[data-value=Probabilities]")
+      toggleState(id = "prevBtn", condition = rv$page > 1)
+      toggleState(id = "nextBtn", condition = rv$page < 3)
+      hide(selector = ".page")
+      show(sprintf("step%s", rv$page))
     })
-    observe({
-      toggle(condition = input$Done2, selector = "#mynavlist li a[data-value=Parameters]")
+    
+    navPage <- function(direction) {
+      rv$page <- rv$page + direction
+    }
+    observeEvent(input$prevBtn, navPage(-1))
+    observeEvent(input$nextBtn, navPage(1))
+    
+    output$page1 <- renderUI({
+      tagList(
+        "General Information",
+        br(),
+        radioButtons("de-escalation", "With or Without Dose De-escalation", c(With = '1',Without = '0'),selected = '1'),
+        textInput("doseNumber","Please Enter Number of Doses in the Scenario:","6",placeholder = "Enter an integer")
+      )
     })
+    output$page2 <- renderUI({
+      tagList(
+        "Probabilities",
+        br(),
+        uiOutput("dynamicInputs")
+        #fileInput("probabilities", "Select Input File for Probabilities", multiple = FALSE, accept = NULL, width = NULL),
+        #radioButtons("sep1",label = "Separator of choice",choices = c(Comma = ',',Semocolon = ';',Tab = '\t',Space = ' '),selected = ',')
+      )
+    })
+    output$page3 <- renderUI(({
+      tagList(
+        "Parameters",
+        br(),
+        fluidRow(
+          column(6,textInput("a","Enter A: ", "3",width = "200px",placeholder = "Enter an integer")),
+          column(6,textInput("b","Enter B: ", "3",width = "200px",placeholder = "Enter an integer")) 
+        ),
+        fluidRow(
+          column(6,textInput("c","Enter C: ", "1",width = "200px",placeholder = "Enter an integer")),
+          column(6,textInput("d","Enter D: ", "1",width = "200px",placeholder = "Enter an integer")) 
+        ),
+        fluidRow(
+          column(6,textInput("e","Enter E: ", "1",width = "200px",placeholder = "Enter an integer"))
+        ),
+        actionButton("calculate","Calculate")
+      )
+    }))
+    output$dynamicInputs <- renderUI({
+      temp <- doseNumber()
+      tempNames <- c(1:temp)
+      for (counter in 1:temp) {
+        tempNames[counter] <- paste("Dose",counter,sep = " ")
+      }
+  
+      lapply(1:temp, function(i) {
+          fluidRow(
+            column(12,textInput(tempNames[i],paste("Enter",tempNames[i],":", sep = " "),placeholder = "Enter data: "))
+          ) 
+      })
+      
+    })
+    
+    
+    
+    
+    #################### INPUT FOR PROBABILITY OF TOXICITY #################### 
+    
+
+    
     dataProbabilities <- reactive({
       fileProbabilities <- input$probabilities
       if(is.null(fileProbabilities)){return()}
@@ -24,28 +90,39 @@ shinyServer(
       return(temptable)
     }) #reactive function for reading table
     output$fileProbabilities <- renderTable({
-      input$calculate
-      if(input$calculate == 0)
+      if (is.null(input$calculate)) {
         return()
-      else
-        isolate(
-          if(is.null(dataProbabilities())){return()}
-          else 
-            input$probabilities
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(dataProbabilities())){return()}
+            else 
+              input$probabilities
+          )
+      }
+      
     },
     rownames = TRUE
     ) #isolated processing of file path information
     output$dataProbabilities <- renderTable({
-      input$calculate
-      if(input$calculate == 0)
+      if (is.null(input$calculate) ){
         return()
-      else
-        isolate(
-          if(is.null(dataProbabilities())){return()}
-          else
-            dataProbabilities()
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(dataProbabilities())){return()}
+            else
+              dataProbabilities()
+          )
+      }
     },
     rownames = TRUE
     ) #isolated processing of file data
@@ -76,22 +153,27 @@ shinyServer(
       return(output)
     })    
     output$deescalation <- renderTable({
-      input$calculate
-      if(input$calculate == 0)
+      if(is.null(input$calculate)){
         return()
-      else
-        isolate(
-          if(is.null(deescalation())){return()}
-          else{
-            temp <- deescalation()
-            temp <- data.frame(cbind(rownames(temp), temp))
-            tempColNames <- c(1:(length(temp[1,])-1))
-            ColNames <- c("Dose Level",tempColNames)
-            colnames(temp) <- ColNames
-            rownames(temp) <- NULL
-            return(temp)
-          }
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(deescalation())){return()}
+            else{
+              temp <- deescalation()
+              temp <- data.frame(cbind(rownames(temp), temp))
+              tempColNames <- c(1:(length(temp[1,])-1))
+              ColNames <- c("Dose Level",tempColNames)
+              colnames(temp) <- ColNames
+              rownames(temp) <- NULL
+              return(temp)
+            }
+          )
+      }
     },
     rownames = FALSE
     )
@@ -119,15 +201,20 @@ shinyServer(
       return(TTLtemp)
     })
     output$otherstats <- renderTable({
-      input$calculate
-      if(input$calculate == 0)
+      if(is.null(input$calculate)){
         return()
-      else
-        isolate(
-          if(is.null(otherstats())){return()}
-          else
-            otherstats()
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(otherstats())){return()}
+            else
+              otherstats()
+          )
+      }
     },
     rownames = TRUE
     )
@@ -148,15 +235,22 @@ shinyServer(
       #dev.off()
     })
     output$MTDbarplot <- renderPlot({
-      input$calculate
-      if(input$calculate == 0)
+      if(is.null(input$calculate)){
         return()
-      else
-        isolate(
-          if(is.null(MTDbarplot())){return()}
-          else
-            MTDbarplot()
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(MTDbarplot())){return()}
+            else
+              MTDbarplot()
+          )
+        
+      }
+      
     })
     
     MTDscatterplot <- reactive({
@@ -171,15 +265,21 @@ shinyServer(
       #dev.off()
     })
     output$MTDscatterplot <- renderPlot({
-      input$calculate
-      if(input$calculate == 0)
+      if (is.null(input$calculate)){
         return()
-      else
-        isolate(
-          if(is.null(MTDscatterplot())){return()}
-          else
-            MTDscatterplot()
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(MTDscatterplot())){return()}
+            else
+              MTDscatterplot()
+          )
+      }
+      
     })
     
     ptNumbarplot <- reactive({
@@ -196,15 +296,21 @@ shinyServer(
       #dev.off()
     })
     output$ptNumbarplot <- renderPlot({
-      input$calculate
-      if(input$calculate == 0)
+      if (is.null(input$calculate)) {
         return()
-      else
-        isolate(
-          if(is.null(ptNumbarplot())){return()}
-          else
-            ptNumbarplot()
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(ptNumbarplot())){return()}
+            else
+              ptNumbarplot()
+          )
+      }
+      
     })
     
     ptNumscatterplot <- reactive({
@@ -219,15 +325,21 @@ shinyServer(
       #dev.off()
     })
     output$ptNumscatterplot <- renderPlot({
-      input$calculate
-      if(input$calculate == 0)
+      if (is.null(input$calculate)) {
         return()
-      else
-        isolate(
-          if(is.null(ptNumscatterplot())){return()}
-          else
-            ptNumscatterplot()
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(ptNumscatterplot())){return()}
+            else
+              ptNumscatterplot()
+          )
+      }
+      
     })
     
     toxincbarplot <- reactive({
@@ -244,15 +356,21 @@ shinyServer(
       #dev.off()
     })
     output$toxincbarplot <- renderPlot({
-      input$calculate
-      if(input$calculate == 0)
+      if (is.null(input$calculate)) {
         return()
-      else
-        isolate(
-          if(is.null(toxincbarplot())){return()}
-          else
-            toxincbarplot()
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(toxincbarplot())){return()}
+            else
+              toxincbarplot()
+          )
+      }
+      
     })
     
     toxinccatterplot <- reactive({
@@ -267,15 +385,21 @@ shinyServer(
       #dev.off()
     })
     output$toxinccatterplot <- renderPlot({
-      input$calculate
-      if(input$calculate == 0)
+      if (is.null(input$calculate)) {
         return()
-      else
-        isolate(
-          if(is.null(toxinccatterplot())){return()}
-          else
-            toxinccatterplot()
-        )
+      }
+      else{
+        input$calculate
+        if(input$calculate == 0)
+          return()
+        else
+          isolate(
+            if(is.null(toxinccatterplot())){return()}
+            else
+              toxinccatterplot()
+          )
+      }
+      
     })
     
     output$down <- downloadHandler(

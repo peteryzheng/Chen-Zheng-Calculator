@@ -16,37 +16,28 @@ shinyUI(fluidPage( #fluidpage based on different browser
   sidebarLayout(
     #sidebarpanel
     sidebarPanel(
-      titlePanel("Enter Information:"),
-      tabsetPanel(selected = "General Information", id = 'mynavlist',
-        tabPanel("General Information",
-                 br(),
-                 radioButtons("de-escalation", "With or Without Dose De-escalation", c(With = '1',Without = '0'),selected = '1'),
-                 textInput("doseNumber","Please Enter Number of Doses in the Scenario:","6",placeholder = "Enter an integer"),
-                 actionButton("Done1","Done")
-        ),
-        tabPanel("Probabilities",
-                 br(),
-                 uiOutput("dynamicInputs"),
-                 fileInput("probabilities", "Select Input File for Probabilities", multiple = FALSE, accept = NULL, width = NULL),
-                 radioButtons("sep1",label = "Separator of choice",choices = c(Comma = ',',Semocolon = ';',Tab = '\t',Space = ' '),selected = ','),
-                 actionButton("Done2","Done")
-        ),
-        tabPanel("Parameters",
-                 br(),
-                 fluidRow(
-                   column(6,textInput("a","Enter A: ", "3",width = "200px",placeholder = "Enter an integer")),
-                   column(6,textInput("b","Enter B: ", "3",width = "200px",placeholder = "Enter an integer")) 
-                 ),                 
-                 fluidRow(
-                   column(6,textInput("c","Enter C: ", "1",width = "200px",placeholder = "Enter an integer")),
-                   column(6,textInput("d","Enter D: ", "1",width = "200px",placeholder = "Enter an integer")) 
-                 ),
-                 fluidRow(
-                   column(6,textInput("e","Enter E: ", "1",width = "200px",placeholder = "Enter an integer"))
-                 ),
-                 actionButton("calculate","Calculate")
-        )
-      )
+      hidden(
+        lapply(seq(3), function(i) {
+          div(
+            class = "page",
+            id = paste0("step", i),
+            "Step", i,
+            if(i == 1){
+              uiOutput("page1")
+              
+            }
+            else if (i == 2){
+              uiOutput("page2")
+            }
+            else if (i == 3){
+              uiOutput("page3")
+            }
+          )
+        })
+      ),
+      br(),
+      actionButton("prevBtn", "< Previous"),
+      actionButton("nextBtn", "Next >")
     ),
     #mainpanel
     mainPanel(
