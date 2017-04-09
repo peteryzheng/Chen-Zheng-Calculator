@@ -68,13 +68,7 @@ shinyServer(
       
     })
     
-    
-    
-    
     #################### INPUT FOR PROBABILITY OF TOXICITY #################### 
-    
-
-    
     dataProbabilities <- reactive({
       temp <- as.numeric(doseNumber())
       data.frame(lapply(1:temp, function(i) {
@@ -167,11 +161,11 @@ shinyServer(
             if(is.null(deescalation())){return()}
             else{
               temp <- deescalation()
-              #temp <- data.frame(cbind(rownames(temp), temp))
-              #tempColNames <- c(1:(length(temp[1,])-1))
-              #ColNames <- c("Dose Level",tempColNames)
-              #colnames(temp) <- ColNames
-              #rownames(temp) <- NULL
+              temp <- data.frame(cbind(rownames(temp), temp))
+              tempColNames <- c(1:(length(temp[1,])-1))
+              ColNames <- c("Dose Level",tempColNames)
+              colnames(temp) <- ColNames
+              rownames(temp) <- NULL
               return(temp)
             }
           )
@@ -228,7 +222,7 @@ shinyServer(
       colnames(samplebarindex) <- colnames(appendedtempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,appendedtempoutput)))
       colnames(tempDataFrame) <- c("Dose_level", "Probabilities_that_the_dose_is_declared_as_MTD")
-      return(ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_declared_as_MTD)) + labs(title = "Probabilities That the Dose is Declared as MTD") + geom_bar(stat = "identity")+ scale_x_continuous(breaks = c(0:(length(tempoutput)))))
+      return(ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_declared_as_MTD)) + labs(title = "Probabilities That the Dose is Declared as MTD") + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3")+ scale_x_continuous(breaks = c(0:(length(tempoutput)))))
       #png(sprintf( paste(outputdirectory,"barplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
       #p <- ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_declared_as_MTD)) + geom_bar(stat = "identity") + scale_x_continuous(breaks = c(0:(length(probabilities)-1)))
       #print(p)
@@ -258,9 +252,9 @@ shinyServer(
       TTLtemp <- otherstats()
       tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[3,])))
       colnames(tempDataFrame) <- c("Probability_of_toxicity", "Probabilities_that_the_dose_is_declared_as_MTD")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + labs(title = "Probabilities That the Dose is Declared as MTD") + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1)))
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + labs(title = "Probabilities That the Dose is Declared as MTD") + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -289,9 +283,9 @@ shinyServer(
       colnames(samplebarindex) <- colnames(tempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,tempoutput[4,])))
       colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_patients")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + geom_bar(stat = "identity") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -318,9 +312,9 @@ shinyServer(
       TTLtemp <- otherstats()
       tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[4,])))
       colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_patients")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1)))
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -349,9 +343,9 @@ shinyServer(
       colnames(samplebarindex) <- colnames(tempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,tempoutput[5,])))
       colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_toxicity_incidences")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + geom_bar(stat = "identity") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -378,9 +372,9 @@ shinyServer(
       TTLtemp <- otherstats()
       tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[5,])))
       colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_toxicity_incidences")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1)))
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point() + geom_line() + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -402,6 +396,9 @@ shinyServer(
       
     })
     
+    #################### DOWNLOAD HANDLERS #################### 
+
+    
     output$down <- downloadHandler(
       filename = function(){
         paste("output","pdf",sep = ".")
@@ -417,6 +414,68 @@ shinyServer(
         dev.off()
       }
     )
+    
+    output$downMTDbarplot <- downloadHandler(
+      filename = function(){
+        paste("MTDbarplot","png",sep = ".")
+      },
+      content = function(file){
+        png(file)
+        print(MTDbarplot())
+        dev.off()
+      }
+    )
+    output$downMTDscatterplot <- downloadHandler(
+      filename = function(){
+        paste("MTDscatterplot","png",sep = ".")
+      },
+      content = function(file){
+        png(file)
+        print(MTDscatterplot())
+        dev.off()
+      }
+    )
+    output$downptNumbarplot <- downloadHandler(
+      filename = function(){
+        paste("ptNumbarplot","png",sep = ".")
+      },
+      content = function(file){
+        png(file)
+        print(ptNumbarplot())
+        dev.off()
+      }
+    )
+    output$downptNumscatterplot <- downloadHandler(
+      filename = function(){
+        paste("ptNumscatterplot","png",sep = ".")
+      },
+      content = function(file){
+        png(file)
+        print(ptNumscatterplot())
+        dev.off()
+      }
+    )
+    output$downtoxincbarplot <- downloadHandler(
+      filename = function(){
+        paste("toxincbarplot","png",sep = ".")
+      },
+      content = function(file){
+        png(file)
+        print(toxincbarplot())
+        dev.off()
+      }
+    )
+    output$downtoxinccatterplot <- downloadHandler(
+      filename = function(){
+        paste("toxinccatterplot","png",sep = ".")
+      },
+      content = function(file){
+        png(file)
+        print(toxinccatterplot())
+        dev.off()
+      }
+    )
+    
     
     output$downFile <- downloadHandler(
       filename = function(){
