@@ -1,9 +1,19 @@
 library(shiny)
 library(ggplot2)
 library(shinyjs)
+onSessionEnded = function(callback) {
+  "Registers the given callback to be invoked when the session is closed
+  (i.e. the connection to the client has been severed). The return value
+  is a function which unregisters the callback. If multiple callbacks are
+  registered, the order in which they are invoked is not guaranteed."
+  return(.closedCallbacks$register(callback))
+}
 
 shinyServer(
   function(input,output){
+    session$onSessionEnded(function() {
+      stopApp()
+    })
     doseNumber <- reactive({
       return(as.numeric(input$doseNumber))
     })
