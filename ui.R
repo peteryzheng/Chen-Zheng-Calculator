@@ -46,7 +46,6 @@ shinyUI(fluidPage( #fluidpage based on different browser
           title = "Input Information",
           h1("Probability of toxicity"),
           tableOutput("dataProbabilities")
-          #textOutput("infoProbabilities")
         ),
         tabPanel(
           title = "Data output",
@@ -81,9 +80,7 @@ shinyUI(fluidPage( #fluidpage based on different browser
           br()
         ),
         tabPanel(
-          title = "About File",
-          h1("Probability of toxicity file path"),
-          tableOutput("fileProbabilities")
+          title = "About File"
         )
       )
     )

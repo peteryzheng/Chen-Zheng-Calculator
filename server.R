@@ -26,13 +26,11 @@ shinyServer(
       hide(selector = ".page")
       show(sprintf("step%s", rv$page))
     })
-    
     navPage <- function(direction) {
       rv$page <- rv$page + direction
     }
     observeEvent(input$prevBtn, navPage(-1))
     observeEvent(input$nextBtn, navPage(1))
-    
     output$page1 <- renderUI({
       tagList(
         "General Information",
@@ -48,8 +46,8 @@ shinyServer(
         uiOutput("dynamicInputs")
         #fileInput("probabilities", "Select Input File for Probabilities", multiple = FALSE, accept = NULL, width = NULL),
         #radioButtons("sep1",label = "Separator of choice",choices = c(Comma = ',',Semocolon = ';',Tab = '\t',Space = ' '),selected = ',')
-      )
-    })
+      )}
+    )
     output$page3 <- renderUI(({
       tagList(
         "Parameters",
@@ -77,7 +75,12 @@ shinyServer(
       })
       
     })
-    
+
+    #################### Error messages #################### 
+    output$wrongDoseNumber <- renderText(
+      return("Dose Number invalid!")
+    )
+        
     #################### INPUT FOR PROBABILITY OF TOXICITY #################### 
     dataProbabilities <- reactive({
       temp <- as.numeric(doseNumber())
