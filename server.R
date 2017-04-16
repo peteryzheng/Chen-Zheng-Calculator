@@ -11,9 +11,9 @@ onSessionEnded = function(callback) {
 
 shinyServer(
   function(input,output){
-    session$onSessionEnded(function() {
-      stopApp()
-    })
+    #session$onSessionEnded(function() {
+    #  stopApp()
+    #})
     doseNumber <- reactive({
       return(as.numeric(input$doseNumber))
     })
@@ -37,7 +37,7 @@ shinyServer(
       tagList(
         "General Information",
         br(),
-        radioButtons("de-escalation", "With or Without Dose De-escalation", c(With = '1',Without = '0'),selected = '1'),
+        radioButtons("de-escalation", "With or Without Dose De-escalation", c(With = '1',Without = '0'),selected = '0'),
         textInput("doseNumber","Please Enter Number of Doses in the Scenario:","6",placeholder = "Enter an integer")
       )
     })
@@ -155,7 +155,7 @@ shinyServer(
       output <- data.frame(round(output,digits = 3))
       doseLevel <- as.numeric(1:length(probabilities[1,]))
       colnames(output) <- doseLevel
-      row.names(output)<- c("Probability of toxicity","Dose concentration","Probabilities that the dose is declared as MTD","Expected number of patients","Expected number of toxicity incidences") #Give row names for excel spreadsheet output
+      row.names(output)<- c("Probability of toxicity","Dose concentration","Probabilities that the dose is chosen as MTD","Expected number of patients","Expected number of toxicity incidences") #Give row names for excel spreadsheet output
       return(output)
     })    
     output$deescalation <- renderTable({
@@ -200,7 +200,7 @@ shinyServer(
       TTLtemp[5,] <- overallToxicity #Side column 5th item overall toxicity incidence
       TTLtemp[2,] <- TTLtemp[5,]/TTLtemp[4,] #Side column 2nd item overall toxicity rateTTLtemp[(count - 1)*3+1,1] <- TTL #Side column 1st item TTL
       colnames(TTLtemp) <- "other characteristics"#Get rid of ugly column names that don't make sense
-      row.names(TTLtemp) <- c("TTL","Overall Toxicity Rate","Probability of Dose 0 Recommende as MTD","Total Patient Number","Overall Toxicity Incidence")
+      row.names(TTLtemp) <- c("Expected Probability of Dose-limiting Toxicity (DLT) at MTD","Overall Toxicity Rate","Probability of Dose 0 chosen as MTD","Total Patient Number","Overall Toxicity Incidence")
       TTLtemp <- round(TTLtemp,digits = 3)
       return(TTLtemp)
     })
@@ -231,10 +231,10 @@ shinyServer(
       samplebarindex <- data.frame(t(c(0:(length(appendedtempoutput)-1))))
       colnames(samplebarindex) <- colnames(appendedtempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,appendedtempoutput)))
-      colnames(tempDataFrame) <- c("Dose_level", "Probabilities_that_the_dose_is_declared_as_MTD")
-      return(ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_declared_as_MTD)) + labs(title = "Probabilities That the Dose is Declared as MTD") + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3")+ scale_x_continuous(breaks = c(0:(length(tempoutput)))))
+      colnames(tempDataFrame) <- c("Dose_level", "Probabilities_that_the_dose_is_chosen_as_MTD")
+      return(ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_chosen_as_MTD)) + labs(title = "Probabilities That the Dose is chosen as MTD") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3")+ scale_x_continuous(breaks = c(0:(length(tempoutput)))))
       #png(sprintf( paste(outputdirectory,"barplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_declared_as_MTD)) + geom_bar(stat = "identity") + scale_x_continuous(breaks = c(0:(length(probabilities)-1)))
+      #p <- ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_chosen_as_MTD)) + geom_bar(stat = "identity") + scale_x_continuous(breaks = c(0:(length(probabilities)-1)))
       #print(p)
       #dev.off()
     })
@@ -261,10 +261,10 @@ shinyServer(
       tempoutput <- deescalation()
       TTLtemp <- otherstats()
       tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[3,])))
-      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Probabilities_that_the_dose_is_declared_as_MTD")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + labs(title = "Probabilities That the Dose is Declared as MTD") + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
+      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Probabilities_that_the_dose_is_chosen_as_MTD")
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + labs(title = "Probabilities That the Dose is chosen as MTD") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -293,9 +293,9 @@ shinyServer(
       colnames(samplebarindex) <- colnames(tempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,tempoutput[4,])))
       colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_patients")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -322,9 +322,9 @@ shinyServer(
       TTLtemp <- otherstats()
       tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[4,])))
       colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_patients")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -353,9 +353,9 @@ shinyServer(
       colnames(samplebarindex) <- colnames(tempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,tempoutput[5,])))
       colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_toxicity_incidences")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -382,9 +382,9 @@ shinyServer(
       TTLtemp <- otherstats()
       tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[5,])))
       colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_toxicity_incidences")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
-      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_declared_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
+      #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
       #dev.off()
     })
@@ -831,12 +831,3 @@ calculateDose0 = function(probability, parameter, dosedeesc){
     return(dose0counter)
   }
 }
-
-
-
-
-
-
-
-
-
