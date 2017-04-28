@@ -8,6 +8,7 @@ onSessionEnded = function(callback) {
   registered, the order in which they are invoked is not guaranteed."
   return(.closedCallbacks$register(callback))
 }
+`%then%` <- shiny:::`%OR%`
 
 shinyServer(
   function(input,output){
@@ -15,6 +16,11 @@ shinyServer(
     #  stopApp()
     #})
     doseNumber <- reactive({
+      validate(
+        need(try(input$doseNumber != ""), "Dose Number Invalid") %then%
+        need(try(!is.na(as.numeric(input$doseNumber))), "Dose Number NOT a Number") %then%
+        need(try(!as.numeric(input$doseNumber) == 0), "Dose Number CANNOT Equal to 0")
+      )
       return(as.numeric(input$doseNumber))
     })
     #################### Dynamic Input pages #################### 
@@ -22,33 +28,46 @@ shinyServer(
     rv <- reactiveValues(page = 1)
     observe({
       toggleState(id = "prevBtn", condition = rv$page > 1)
-      toggleState(id = "nextBtn", condition = rv$page < 3)
+      toggleState(id = "nextBtn", condition = rv$page < 4)
       hide(selector = ".page")
       show(sprintf("step%s", rv$page))
     })
+    observe({
+      shinyjs::toggleState("nextBtn", condition = !is.null(input$doseNumber) && input$doseNumber != "" && as.numeric(input$doseNumber) >= 1 && !is.na(as.numeric(input$doseNumber)) && checkProb())
+    })
+    
     navPage <- function(direction) {
       rv$page <- rv$page + direction
     }
     observeEvent(input$prevBtn, navPage(-1))
     observeEvent(input$nextBtn, navPage(1))
+    
     output$page1 <- renderUI({
       tagList(
-        "General Information",
+        renderText("There are two subtypes of standard 3+3 designs: with dose de-escalation vs. without dose de-escalation."),
         br(),
-        radioButtons("de-escalation", "With or Without Dose De-escalation", c(With = '1',Without = '0'),selected = '0'),
-        textInput("doseNumber","Please Enter Number of Doses in the Scenario:","6",placeholder = "Enter an integer")
+        radioButtons("de-escalation", "Please check one of the subtypes below you want to use:", c(With = '1',Without = '0'),selected = '0'),
+        textInput("doseNumber","Please enter the total number of dose levels to be tested in the trial:","6",placeholder = "Enter an integer"),
+        textOutput("errorMessage")
       )
     })
     output$page2 <- renderUI({
       tagList(
-        "Probabilities",
+        renderText("Please Enter the True Probability of Dose Limiting Toxicity for each Dose Level Below:"),
         br(),
-        uiOutput("dynamicInputs")
-        #fileInput("probabilities", "Select Input File for Probabilities", multiple = FALSE, accept = NULL, width = NULL),
-        #radioButtons("sep1",label = "Separator of choice",choices = c(Comma = ',',Semocolon = ';',Tab = '\t',Space = ' '),selected = ',')
+        uiOutput("dynamicInputs"),
+        textOutput("errorMessage")
       )}
     )
-    output$page3 <- renderUI(({
+    output$page3 <- renderUI({
+      tagList(
+        renderText("Please Enter the Dosage for each Dose Level Below:"),
+        helpText("This is optional, please click Next if you wish to proceed"),
+        br(),
+        uiOutput("dosageInputs")
+      )}
+    )
+    output$page4 <- renderUI({
       tagList(
         "Parameters",
         br(),
@@ -65,25 +84,52 @@ shinyServer(
         ),
         actionButton("calculate","Calculate")
       )
-    }))
+    })
     output$dynamicInputs <- renderUI({
       temp <- as.numeric(doseNumber())
       lapply(1:temp, function(i) {
           fluidRow(
-            column(12,textInput(paste0("Dose",i),paste("Enter",paste0("Dose",i),":", sep = " "),placeholder = "Enter data: "))
+            column(12,textInput(paste0("Dose",i),paste("Enter",paste0("Dose ",i),":", sep = " "),placeholder = "Enter data: "))
           ) 
       })
-      
     })
+    output$dosageInputs <- renderUI({
+      temp <- as.numeric(doseNumber())
+      lapply(1:temp, function(i) {
+        fluidRow(
+          column(12,textInput(paste0("Dosage",i),paste("Enter",paste0("Dosage ",i),":", sep = " "),placeholder = "Enter data: "))
+        ) 
+      })
+    })
+    checkProb <- reactive({
+      
+      temp <- TRUE
+      count = doseNumber()
+      for(i in 1:count){
+        if(is.null(input[[paste0("Dose",i)]])){
+          temp = TRUE
+        }
+        else{
+          if (input[[paste0("Dose",i)]] == "") {
+            temp = FALSE
+          }
+          else if(as.numeric(input[[paste0("Dose",i)]]) <= 0){
+            temp = FALSE
+          }
+        }
+      }
+      return(temp)
+    })
+    output$errorMessage <- renderText({
+      if (checkProb() == TRUE){
+        return("")
+      }
+    })
+    
 
-    #################### Error messages #################### 
-    output$wrongDoseNumber <- renderText(
-      return("Dose Number invalid!")
-    )
-        
     #################### INPUT FOR PROBABILITY OF TOXICITY #################### 
     dataProbabilities <- reactive({
-      temp <- as.numeric(doseNumber())
+      temp <- doseNumber()
       data.frame(lapply(1:temp, function(i) {
         as.numeric(input[[paste0("Dose",i)]])
       }))
@@ -118,6 +164,13 @@ shinyServer(
     rownames = TRUE
     ) #isolated processing of file data
     
+    dataDosage <- reactive({
+      temp <- doseNumber()
+      data.frame(lapply(1:temp, function(i) {
+        as.numeric(input[[paste0("Dosage",i)]])
+      }))
+    })
+    
     output$infoProbabilities <- renderText({
       if (is.null(input$calculate) ){
         return()
@@ -140,7 +193,7 @@ shinyServer(
     deescalation <- reactive({
       parameters <- c(as.numeric(input$a),as.numeric(input$b),as.numeric(input$c),as.numeric(input$d),as.numeric(input$e))
       probabilities <- data.frame(dataProbabilities())
-      doseConc <- data.frame(t(1:length(probabilities[1,])))
+      doseConc <- data.frame(dataDosage())
       result <- calculateMTDandPtNum(probability = probabilities,parameter = parameters,dosedeesc = as.numeric(input$`de-escalation`))
       MTD <- result[1,]
       ptNumber <- result[2,]
@@ -158,7 +211,7 @@ shinyServer(
       output <- data.frame(round(output,digits = 3))
       doseLevel <- as.numeric(1:length(probabilities[1,]))
       colnames(output) <- doseLevel
-      row.names(output)<- c("Probability of toxicity","Dose concentration","Probabilities that the dose is chosen as MTD","Expected number of patients","Expected number of toxicity incidences") #Give row names for excel spreadsheet output
+      row.names(output)<- c("True Probability of Dose Limiting Toxicity","Dosage","Probability of the Dose Level Chosen as MTD","Expected Number of Patients Treated at the Dose Level","Expected Number of Dose Limiting Toxicity at the Dose Level") #Give row names for excel spreadsheet output
       return(output)
     })    
     output$deescalation <- renderTable({
@@ -202,8 +255,8 @@ shinyServer(
       TTLtemp[4,] <- sum(ptNumber) #Side column 4th item total patient number
       TTLtemp[5,] <- overallToxicity #Side column 5th item overall toxicity incidence
       TTLtemp[2,] <- TTLtemp[5,]/TTLtemp[4,] #Side column 2nd item overall toxicity rateTTLtemp[(count - 1)*3+1,1] <- TTL #Side column 1st item TTL
-      colnames(TTLtemp) <- "other characteristics"#Get rid of ugly column names that don't make sense
-      row.names(TTLtemp) <- c("Expected Probability of Dose-limiting Toxicity (DLT) at MTD","Overall Toxicity Rate","Probability of Dose 0 chosen as MTD","Total Patient Number","Overall Toxicity Incidence")
+      colnames(TTLtemp) <- "Other Characteristics"#Get rid of ugly column names that don't make sense
+      row.names(TTLtemp) <- c("Expected Probability of Dose-limiting Toxicity (DLT) at MTD","Overall Rate of Dose Limiting Toxicity","Probability of All Dose Levels Being Over Toxic","Expected Overall Number of Patients","Expected Overall Number of Dose Limiting Toxicity")
       TTLtemp <- round(TTLtemp,digits = 3)
       return(TTLtemp)
     })
@@ -234,8 +287,8 @@ shinyServer(
       samplebarindex <- data.frame(t(c(0:(length(appendedtempoutput)-1))))
       colnames(samplebarindex) <- colnames(appendedtempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,appendedtempoutput)))
-      colnames(tempDataFrame) <- c("Dose_level", "Probabilities_that_the_dose_is_chosen_as_MTD")
-      return(ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_chosen_as_MTD)) + labs(title = "Probabilities That the Dose is chosen as MTD") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3")+ scale_x_continuous(breaks = c(0:(length(tempoutput)))))
+      colnames(tempDataFrame) <- c("Dose_Level", "Probabilities_of_Each_Dose_Chosen_as_MTD")
+      return(ggplot(data = tempDataFrame, aes(x = Dose_Level , y = Probabilities_of_Each_Dose_Chosen_as_MTD)) + labs(title = "Probability of Each Dose Chosen as MTD") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15)) + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3")+ scale_x_continuous(breaks = c(0:(length(tempoutput)))))
       #png(sprintf( paste(outputdirectory,"barplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
       #p <- ggplot(data = tempDataFrame, aes(x = Dose_level , y = Probabilities_that_the_dose_is_chosen_as_MTD)) + geom_bar(stat = "identity") + scale_x_continuous(breaks = c(0:(length(probabilities)-1)))
       #print(p)
@@ -264,8 +317,8 @@ shinyServer(
       tempoutput <- deescalation()
       TTLtemp <- otherstats()
       tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[3,])))
-      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Probabilities_that_the_dose_is_chosen_as_MTD")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + labs(title = "Probabilities That the Dose is chosen as MTD") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
+      colnames(tempDataFrame) <- c("Probability_of_Toxicity", "Probability_as_MTD_by_Probability_of_Toxicity")
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_Toxicity , y = Probability_as_MTD_by_Probability_of_Toxicity,group = 1)) + labs(title = "Probability as MTD by Probability of Toxicity") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
       #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
@@ -295,8 +348,8 @@ shinyServer(
       samplebarindex <- data.frame(t(c(1:length(tempoutput))))
       colnames(samplebarindex) <- colnames(tempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,tempoutput[4,])))
-      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_patients")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
+      colnames(tempDataFrame) <- c("Dose_Level", "Expected_Number_of_Patients_Treated_at_Each_Dose_Level")
+      return(ggplot(data = tempDataFrame, aes(x = Dose_Level , y = Expected_Number_of_Patients_Treated_at_Each_Dose_Level,group = 1)) + labs(title = "Expected Number of Patients Treated at Each Dose Level") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15)) + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
       #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
@@ -324,8 +377,8 @@ shinyServer(
       tempoutput <- deescalation()
       TTLtemp <- otherstats()
       tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[4,])))
-      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_patients")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_patients,group = 1)) + labs(title = "Expected Number of Patients") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
+      colnames(tempDataFrame) <- c("Probability_of_Toxicity", "Expected_Number_of_Patients_by_Probability_of_Toxicity")
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_Toxicity , y = Expected_Number_of_Patients_by_Probability_of_Toxicity,group = 1)) + labs(title = "Expected Number of Patients by Probability of Toxicity") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
       #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
@@ -355,8 +408,8 @@ shinyServer(
       samplebarindex <- data.frame(t(c(1:length(tempoutput))))
       colnames(samplebarindex) <- colnames(tempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,tempoutput[5,])))
-      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_toxicity_incidences")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
+      colnames(tempDataFrame) <- c("Dose_Level", "Expected_Number_of_Dose_Limiting_Toxicity_at_Each_Dose_Level")
+      return(ggplot(data = tempDataFrame, aes(x = Dose_Level , y = Expected_Number_of_Dose_Limiting_Toxicity_at_Each_Dose_Level,group = 1)) + labs(title = "Expected Number of Dose Limiting Toxicity at Each Dose Level") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15)) + geom_bar(stat = "identity",fill = "darkslategray3",colour="darkslategray3") + scale_x_continuous(breaks = c(1:(length(tempoutput)))))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
       #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)
@@ -384,8 +437,8 @@ shinyServer(
       tempoutput <- deescalation()
       TTLtemp <- otherstats()
       tempDataFrame <- data.frame(t(rbind(tempoutput[1,],tempoutput[5,])))
-      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_number_of_toxicity_incidences")
-      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_number_of_toxicity_incidences,group = 1)) + labs(title = "Expected Number of Toxicity Incidences") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
+      colnames(tempDataFrame) <- c("Probability_of_toxicity", "Expected_Number_of_Dose_Limiting_Toxicity_by_Probability_of_Toxicity")
+      return(ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Expected_Number_of_Dose_Limiting_Toxicity_by_Probability_of_Toxicity,group = 1)) + labs(title = "Expected Number of Dose Limiting Toxicity by Probability of Toxicity") + theme(plot.title = element_text(size = 20, face = "bold",hjust = 0.5),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1)))
       #png(sprintf( paste(outputdirectory,"scatterplot ",row.names(tempoutput[(x+2),]),counter,".jpeg",sep = "")))
       #p <- ggplot(data = tempDataFrame, aes(x = Probability_of_toxicity , y = Probabilities_that_the_dose_is_chosen_as_MTD,group = 1)) + geom_point(fill = "darkslategray3",colour="darkslategray3") + geom_line(colour="darkslategray3") + scale_x_continuous(limits = c(0,1))
       #print(p)

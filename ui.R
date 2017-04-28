@@ -17,7 +17,7 @@ shinyUI(fluidPage( #fluidpage based on different browser
     #sidebarpanel
     sidebarPanel(
       hidden(
-        lapply(seq(3), function(i) {
+        lapply(seq(4), function(i) {
           div(
             class = "page",
             id = paste0("step", i),
@@ -31,6 +31,9 @@ shinyUI(fluidPage( #fluidpage based on different browser
             }
             else if (i == 3){
               uiOutput("page3")
+            }
+            else if (i == 4){
+              uiOutput("page4")
             }
           )
         })
