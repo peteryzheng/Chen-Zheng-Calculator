@@ -22,7 +22,7 @@ shinyUI(fillPage( #fluidpage based on different browser
         tags$div(
           class="title",
           tags$img(src='logo.png',class = "title"),
-          tags$h1("Chen-Zheng Statistical Characteristics Calculator", class = "title")
+          tags$name("Calculator for Operating Characteristics of 3+3 Designs by Zhengjia Chen & Youyun Zheng", class = "title")
         )
       ),
       tags$div(
@@ -59,11 +59,11 @@ shinyUI(fillPage( #fluidpage based on different browser
             tags$div(
               class = "main",
               tabsetPanel(
-                tabPanel(
-                  title = h1("Input Information",class = "main"),
-                  tableOutput("dataProbabilities"),
-                  tableOutput("dataDosage")
-                ),
+                #tabPanel(
+                #  title = h1("Input Information",class = "main"),
+                #  tableOutput("dataProbabilities"),
+                #  tableOutput("dataDosage")
+                #),
                 tabPanel(
                   title = h1("Table Output",class = "main"),
                   br(),
@@ -98,7 +98,7 @@ shinyUI(fillPage( #fluidpage based on different browser
                   )
                 ),
                 tabPanel(
-                  title = h1("About the Calculator", class = "main"),
+                  title = h1("User Manual", class = "main"),
                   tags$div(class = "UserManual",
                    tags$h1("User Manual", class = "UserManual"),
                    tags$h2("1. How to use this calculator", class = "UserManual"),

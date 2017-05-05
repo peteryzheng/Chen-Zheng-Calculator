@@ -11,10 +11,10 @@ onSessionEnded = function(callback) {
 `%then%` <- shiny:::`%OR%`
 
 shinyServer(
-  function(input,output){
-    #session$onSessionEnded(function() {
-    #  stopApp()
-    #})
+  function(input,output,session){
+    session$onSessionEnded(function() {
+      stopApp()
+    })
     doseNumber <- reactive({
       validate(
         need(try(input$doseNumber != ""), "Dose Number Invalid") %then%
