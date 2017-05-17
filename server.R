@@ -11,10 +11,10 @@ onSessionEnded = function(callback) {
 `%then%` <- shiny:::`%OR%`
 
 shinyServer(
-  function(input,output,session){
-    session$onSessionEnded(function() {
-      stopApp()
-    })
+  function(input,output){
+    #session$onSessionEnded(function() {
+    #  stopApp()
+    #})
     doseNumber <- reactive({
       validate(
         need(try(input$doseNumber != ""), "Dose Number Invalid") %then%
@@ -257,7 +257,7 @@ shinyServer(
       TTL <- calculateTTL(probMTD = MTD,probabilities = probabilities) #Run method for calculating targeted toxicity level
       toxicity <- calculateIndividualToxicity(ptNum = ptNumber, probabilities = probabilities) #Run method for calculating Individual toxicity
       overallToxicity <- calculateOverallToxicity(ptNum = ptNumber, probabilities = probabilities) #Run method for calculating overall toxicity
-      TTLtemp <- data.frame(c(1:(length(probabilities)-1)))
+      TTLtemp <- data.frame(c(1:6))
       TTLtemp[1,] <- TTL #Side column 1st item TTL 
       TTLtemp[3,] <- calculateDose0(probability = probabilities,parameter = parameters,dosedeesc = as.numeric(input$`de-escalation`)) # Side column 3rd item dose 0 MTD
       TTLtemp[4,] <- sum(ptNumber) #Side column 4th item total patient number
