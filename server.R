@@ -57,7 +57,7 @@ shinyServer(
     output$page2 <- renderUI({
       tagList(
         h2("Step 2"),
-        h3("Please Enter the True Probability of Dose Limiting Toxicity and dosages (optional) for each Dose Level Below:"),
+        h3("Please Enter the True Probability of Dose Limiting Toxicity (Pdlt) and dosages (optional) for each Dose Level Below:"),
         br(),
         uiOutput("dynamicInputs"),
         h4("Please note: All Doses have to be entered for calculation"),
@@ -87,7 +87,7 @@ shinyServer(
       temp <- as.numeric(doseNumber())
       lapply(1:temp, function(i) {
           fluidRow(
-            tags$div(class = "widgets",column(6,textInput(paste0("Dose",i),paste(paste0("Dose ",i),":", sep = " "),placeholder = "Enter data: "))),
+            tags$div(class = "widgets",column(6,textInput(paste0("Dose",i),paste(paste0("Pdlt Dose ",i),":", sep = " "),placeholder = "Enter data: "))),
             tags$div(class = "widgets",column(6,textInput(paste0("Dosage",i),paste(paste0("Dosage ",i),":", sep = " "),placeholder = "Enter data: ")))
             
           ) 
@@ -257,7 +257,7 @@ shinyServer(
       TTL <- calculateTTL(probMTD = MTD,probabilities = probabilities) #Run method for calculating targeted toxicity level
       toxicity <- calculateIndividualToxicity(ptNum = ptNumber, probabilities = probabilities) #Run method for calculating Individual toxicity
       overallToxicity <- calculateOverallToxicity(ptNum = ptNumber, probabilities = probabilities) #Run method for calculating overall toxicity
-      TTLtemp <- data.frame(c(1:6))
+      TTLtemp <- data.frame(c(1:5))
       TTLtemp[1,] <- TTL #Side column 1st item TTL 
       TTLtemp[3,] <- calculateDose0(probability = probabilities,parameter = parameters,dosedeesc = as.numeric(input$`de-escalation`)) # Side column 3rd item dose 0 MTD
       TTLtemp[4,] <- sum(ptNumber) #Side column 4th item total patient number
@@ -291,7 +291,7 @@ shinyServer(
     MTDbarplot <- reactive({
       tempoutput <- deescalation()
       TTLtemp <- otherstats()
-      appendedtempoutput <- data.frame(TTLtemp[2,],tempoutput[3,])
+      appendedtempoutput <- data.frame(TTLtemp[3,],tempoutput[3,])
       samplebarindex <- data.frame(t(c(0:(length(appendedtempoutput)-1))))
       colnames(samplebarindex) <- colnames(appendedtempoutput)
       tempDataFrame <- data.frame(t(rbind(samplebarindex,appendedtempoutput)))
