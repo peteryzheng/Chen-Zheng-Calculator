@@ -200,7 +200,7 @@ shinyUI(fillPage( #fluidpage based on different browser
                      ),
                      tags$h1(HTML("Starting from dose 1, a cohort of 3 patients was entered in trial for each dose i<br><br>
                                   <p class = 'tab1'>1. If less than 1 out of the cohort of 3 patients experience DLT, dose escalation is indicated<br><br></p>
-                                  <p class = 'tab1'>2. If 1 out of the cohort of A patients experience DLT, an additional cohort of 3 patients will be entered at dose i<br><br></p> 
+                                  <p class = 'tab1'>2. If 1 out of the cohort of 3 patients experience DLT, an additional cohort of 3 patients will be entered at dose i<br><br></p> 
                                   <p class = 'tab2'>a. If less than or equal to 1 out of the cohort of 6 patients experience DLT, dose escalation is indicated <br><br></p>
                                   <p class = 'tab2'>b. If more than 1 out of the cohort of 6 patients experience DLT, dose i-1 will be deemed MTD<br><br></p>
                                   <p class = 'tab1'>3. If more than 1 out of the cohort of 3 patients experience DLT, than dose i-1 will be deemed MTD<br><br></p>
