@@ -198,13 +198,13 @@ shinyUI(fillPage( #fluidpage based on different browser
                        tags$h4("Figure 5. The flow chart of algorithmic-based clinical trial designs without dose de-escalation"
                                , class = "legend")
                      ),
-                     tags$h1(HTML("Starting from dose 1, a cohort of 3 patients was entered in trial for each dose i<br><br>
-                                  <p class = 'tab1'>1. If less than 1 out of the cohort of 3 patients experience DLT, dose escalation is indicated<br><br></p>
-                                  <p class = 'tab1'>2. If 1 out of the cohort of 3 patients experience DLT, an additional cohort of 3 patients will be entered at dose i<br><br></p> 
-                                  <p class = 'tab2'>a. If less than or equal to 1 out of the cohort of 6 patients experience DLT, dose escalation is indicated <br><br></p>
-                                  <p class = 'tab2'>b. If more than 1 out of the cohort of 6 patients experience DLT, dose i-1 will be deemed MTD<br><br></p>
-                                  <p class = 'tab1'>3. If more than 1 out of the cohort of 3 patients experience DLT, than dose i-1 will be deemed MTD<br><br></p>
-                                  If dose 0 was deemed MTD, or if dose escalation is still indicated at dose n, the trial is unable to determine MTD<br> <br>
+                     tags$h1(HTML("To conduct a Phase I clinical trial with standard 3+3 design without dose de-escalation, the work flow for each dose level is presented as shown in Figure 5. Starting from dose 1, a cohort of 3 patients are entered each time and treated at the recommended dose level. The next cohort of 3 patients will be hold on until the toxicity responses of previous cohort of 3 patients have obtained and the newly recommended dose level has been determined.  Assuming that the newly recommended dose level to be tested is the dose level i and the new cohort of 3 patients are treated at the dose level i<br><br>
+                                  <p class = 'tab1'>1. If there is no DLT among the first cohort of 3 patients treated at the dose level i, then dose escalation is recommended<br><br></p>
+                                  <p class = 'tab1'>2. If there is 1 DLT among the first cohort of 3 patients treated at the dose level i, an additional cohort of 3 patients will be entered and treated at the dose i<br><br></p> 
+                                  <p class = 'tab2'>a. If there is no DLT among the second cohort of 3 patients treated at the dose level i, dose escalation is recommended<br><br></p>
+                                  <p class = 'tab2'>b. If there is 1 or more DLTs among the second cohort of 3 patients treated at the dose level i, then dose i-1 will be determined as MTD<br><br></p>
+                                  <p class = 'tab1'>3. If there are 2 or 3 DLT among the first cohort of 3 patients treated at the dose level i, then the dose i-1 will be determined as MTD directly<br><br></p>
+                                  When dose escalation is not indicated at dose level 1 (MTD = dose 0), and dose level 0 is chosen as MTD, or when dose escalation is indicated at dose level n (MTD >= dose n), the trial is unable to determine MTD<br> <br>
                                   "
                      ), class = "piccontainer")
                      ),
@@ -225,18 +225,20 @@ shinyUI(fillPage( #fluidpage based on different browser
                      tags$h1(
                        class = "piccontainer",
                        HTML(
-                         "Starting from dose 1, a cohort of 3 patients was entered in trial for each dose i<br><br>
-                         <p class = 'tab1'>1.	If less than 1 out of the cohort of 3 patients experience DLT, dose escalation is indicated<br><br></p>
-                         <p class = 'tab1'>2.	If equal to 1 out of the cohort of 3 patients experience DLT, an additional cohort of 3 patients will be entered at dose i<br><br></p>
-                         <p class = 'tab2'>a.	If less than or equal to 1 out of the cohort of 6 patients experience DLT, dose escalation is indicated<br><br></p>
-                         <p class = 'tab2'>b.	If more than 1 out of the cohort of 6 patients experience DLT, dose de-escalation is indicated<br><br></p>
-                         <p class = 'tab1'>3.	If more than 1 out of the cohort of 3 patients experience DLT, than dose de-escalation is indicated<br><br></p>
-                         When dose de-escalation is indicated:<br><br>
-                         <p class = 'tab1'>1.	If 6 patient has already been treated at dose i-1, which means less than or equal to 1 out of the cohort of 6 patients experience DLT at dose i-1, dose i-1 will be deemed MTD<br><br></p>
-                         <p class = 'tab1'>2.	If not, an additional cohort of 3 patients will be entered at dose i-1<br><br></p>
-                         <p class = 'tab2'>a.	If less than or equal to 1 out of the cohort of 6 patients experience DLT, dose i-1 will be deemed MTD<br><br></p>
-                         <p class = 'tab2'>b.	If more than 1 out of the cohort of 6 patients experience DLT, further dose de-escalation is indicated<br><br></p>
-                         <p class = 'tab1'>3.	Dose de-escalation will be continued to dose i-2 or so on if indicated until dose 1<br><br></p>
+                         "To execute Phase I clinical trials with rule-based standard 3+3 design with dose de-escalation, the work flow for each dose level is presented as shown in Figure 6. Starting from dose 1, a cohort of 3 patients are entered each time and treated at the recommended dose level. The next cohort of 3 patients will be hold on until the toxicity responses of previous cohort of 3 patients have obtained and the newly recommended dose level has been determined.  Assuming that the newly recommended dose level to be tested is the dose level i and the new cohort of 3 patients are treated at the dose level i
+                         <br><br>
+                         <p class = 'tab1'>1.	If there is no DLT among the first cohort of 3 patients treated at the dose level i, then dose escalation is recommended<br><br></p>
+                         <p class = 'tab1'>2.	If there is 1 DLT among the first cohort of 3 patients treated at the dose level i, an additional cohort of 3 patients will be entered and treated at the dose i<br><br></p>
+                         <p class = 'tab2'>a.	If there is no DLT among the second cohort of 3 patients treated at the dose level i, dose escalation is recommended<br><br></p>
+                         <p class = 'tab2'>b.	If there is 1 or more DLTs among the second cohort of 3 patients treated at the dose level i, then dose de-escalation will occur and the dose i-1 will be tested further with new cohort of 3 patients<br><br></p>
+                         <p class = 'tab1'>3.	If there are 2 or 3 DLT among the first cohort of 3 patients treated at the dose level i, then dose de-escalation will occur and the dose i-1 will be tested further with new cohort of 3 patients<br><br></p>
+                         When dose de-escalation is recommended:<br><br>
+                         <p class = 'tab1'>1.	If 6 patients have already been treated at the dose i-1, which means none or 1 out of the 6 patients in two cohorts experience DLT at dose i-1, dose i-1 will be determined as MTD<br><br></p>
+                         <p class = 'tab1'>2.	Otherwise, there is only one cohort of 3 patients have been treated at the dose i-1 and none DLT among the 3 patients, an additional cohort of 3 patients will be entered and treated at the dose level i-1<br><br></p>
+                         <p class = 'tab2'>a. If none or 1 out of the new cohort of 3 patients experience DLT, then dose level i-1 will be determined as MTD<br><br></p>
+                         <p class = 'tab2'>b.	o	If 2 or 3 patients out of the new cohort of 3 patients experience DLT, further dose de-escalation is required and a further lower dose level (such as the dose level i-2) will be tested. The procedure of dose de-escalation will repeat until a MTD is determined or all dose levels have been determined to be over-toxic and no MTD is determined<br><br></p>
+                         <p class = 'tab1'>3.	Dose de-escalation will be continued to dose i-2 or so on if recommended until dose 0<br><br></p>
+                          When dose escalation is not indicated at dose level 1 (MTD = dose 0), and dose level 0 is chosen as MTD, or when dose escalation is indicated at dose level n (MTD >= dose n), the trial is unable to determine MTD<br> <br>
                          "
                        )
                      )
